@@ -180,8 +180,11 @@
 #define p4est_memory_used               p8est_memory_used
 #define p4est_revision                  p8est_revision
 #define p4est_new                       p8est_new
-#define p4est_destroy                   p8est_destroy
 #define p4est_copy                      p8est_copy
+#define p4est_dynres_add                p8est_dynres_add
+#define p4est_dynres_remove             p8est_dynres_remove
+#define p4est_dynres_replace            p8est_dynres_replace
+#define p4est_destroy                   p8est_destroy
 #define p4est_reset_data                p8est_reset_data
 #define p4est_refine                    p8est_refine
 #define p4est_coarsen                   p8est_coarsen
@@ -226,6 +229,9 @@
 #define p4est_new_ext                   p8est_new_ext
 #define p4est_mesh_new_ext              p8est_mesh_new_ext
 #define p4est_copy_ext                  p8est_copy_ext
+#define p4est_dynres_add_ext            p8est_dynres_add_ext
+#define p4est_dynres_remove_ext         p8est_dynres_remove_ext
+#define p4est_dynres_replace_ext        p8est_dynres_replace_ext
 #define p4est_refine_ext                p8est_refine_ext
 #define p4est_coarsen_ext               p8est_coarsen_ext
 #define p4est_balance_ext               p8est_balance_ext

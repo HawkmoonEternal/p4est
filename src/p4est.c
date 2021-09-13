@@ -55,6 +55,25 @@
 #include <unistd.h>
 #endif
 
+//some macro for sending size_t with MPI, taken from
+//https://stackoverflow.com/questions/40807833/sending-size-t-type-data-with-mpi
+#include <stdint.h>
+#include <limits.h>
+
+#if SIZE_MAX == UCHAR_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_CHAR
+#elif SIZE_MAX == USHRT_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_SHORT
+#elif SIZE_MAX == UINT_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED
+#elif SIZE_MAX == ULONG_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG
+#elif SIZE_MAX == ULLONG_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#else
+   #error "size_t length not recognized"
+#endif
+
 typedef struct
 {
   int8_t              have_first_count, have_first_load;
@@ -627,6 +646,361 @@ p4est_copy_ext (p4est_t * input, int copy_data, int duplicate_mpicomm)
 
   return p4est;
 }
+
+
+p4est_t            *
+p4est_dynres_add (p4est_t * p4est, sc_MPI_Comm new_mpicomm)
+{
+    return p4est_dynres_add_ext(p4est, new_mpicomm, -1, -1, NULL);
+}
+
+
+p4est_t            *
+p4est_dynres_add_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, 
+                      int is_added, int num_added, 
+                      void *user_pointer)
+{
+
+    int mpiret;
+
+    //compute unknown input values
+    if(is_added < 0)
+        is_added = (p4est == NULL);
+
+    if(num_added < 0) {
+        mpiret = sc_MPI_Allreduce(&is_added, &num_added, 1, MPI_INT, MPI_SUM, new_mpicomm);
+        SC_CHECK_MPI (mpiret);
+    }
+
+    if(num_added < 1)
+        return p4est;
+
+
+    //save old MPI environment
+    sc_MPI_Comm oldcomm = MPI_COMM_NULL;
+    int old_rank = -1;
+    int old_num_procs = -1;
+
+    //p4est has to be created first
+    if(p4est == NULL) {
+        P4EST_ASSERT (is_added);
+
+        //allocate memory and set parallel environment
+        p4est = P4EST_ALLOC_ZERO (p4est_t, 1);
+        p4est_comm_parallel_env_assign (p4est, new_mpicomm);
+    } else {
+        //save old parallel environment, assign new one
+        oldcomm = p4est->mpicomm;
+        old_rank = p4est->mpirank;
+        old_num_procs = p4est->mpisize;
+
+        p4est_comm_parallel_env_replace(p4est, new_mpicomm);
+    }
+
+    int num_procs = p4est->mpisize;
+
+    //find rank of root process for following communication
+    int *global_added = P4EST_ALLOC (int, num_procs);
+    mpiret = MPI_Allgather (&is_added, 1, MPI_INT, 
+            global_added, 1, MPI_INT,
+            new_mpicomm);
+    SC_CHECK_MPI (mpiret);
+    int root = -1;
+    for(int i = 0; i < num_procs; i++) {
+        if(!global_added[i]) {
+            root = i;
+            break;
+        }
+    }
+    if(root < 0)
+        P4EST_GLOBAL_LERROR ("p4est: p4est_process_add called with only new processes\n");
+
+
+    p4est->user_pointer = user_pointer;
+
+
+    //communicator containing all new processes and the root process
+    sc_MPI_Comm new_procs_and_root;
+    int color = (is_added || p4est->mpirank == root) ? 0 : MPI_UNDEFINED;
+    int key = is_added ? 1 : 0;
+    mpiret = MPI_Comm_split(new_mpicomm, color, key, &new_procs_and_root);
+    SC_CHECK_MPI (mpiret);
+
+    if(new_procs_and_root != MPI_COMM_NULL) {
+        //broadcast the connectivity to new processes
+        if(!is_added) {
+            p4est_connectivity_bcast(p4est->connectivity, 0, new_procs_and_root);
+        } else {
+            p4est->connectivity = p4est_connectivity_bcast(NULL, 0, new_procs_and_root);
+        }
+
+        //broadcast quadrant data size
+        mpiret = sc_MPI_Bcast(&(p4est->data_size), 1, my_MPI_SIZE_T, 0, new_procs_and_root);
+        SC_CHECK_MPI (mpiret);
+
+        mpiret = MPI_Comm_free(&new_procs_and_root);
+        SC_CHECK_MPI (mpiret);
+    }
+
+    //init some member variables
+    if(p4est->global_first_quadrant != NULL)
+        P4EST_FREE(p4est->global_first_quadrant);
+    p4est->global_first_quadrant = P4EST_ALLOC(p4est_gloidx_t, num_procs + 1);
+    p4est_comm_count_quadrants(p4est);
+
+    //these variables are already correct on the parent processes
+    if(is_added) {
+        //set tree indices and quadrant number to show
+        //that this process is empty
+        p4est->first_local_tree = -1;
+        p4est->last_local_tree = -2;
+        p4est->local_num_quadrants = 0;
+
+        //allocate and initialize trees array
+        if(p4est->trees != NULL)
+            sc_array_destroy(p4est->trees);
+        p4est->trees = sc_array_new (sizeof (p4est_tree_t));
+        sc_array_resize (p4est->trees, p4est->connectivity->num_trees);
+        for(int i = 0; i < p4est->connectivity->num_trees; i++){
+            //init tree
+            p4est_tree_t *tree = p4est_tree_array_index (p4est->trees, i);
+            if(&tree->quadrants == NULL)
+                sc_array_new (sizeof (p4est_quadrant_t));
+            sc_array_init (&tree->quadrants, sizeof (p4est_quadrant_t));
+            P4EST_QUADRANT_INIT(&(tree->first_desc));
+            P4EST_QUADRANT_INIT(&(tree->last_desc));
+            tree->quadrants_offset = 0;
+            for(int j = 0; j <= P4EST_QMAXLEVEL; j++){
+                tree->quadrants_per_level[j] = 0;
+            }
+            for(int j = P4EST_MAXLEVEL; j <= P4EST_MAXLEVEL; j++){
+                tree->quadrants_per_level[j] = -1;
+            }
+            tree->maxlevel = 0;
+        }
+
+        //allocate memory pools
+        if (p4est->user_data_pool != NULL)
+            sc_mempool_destroy (p4est->user_data_pool);
+        if (p4est->data_size > 0) {
+            p4est->user_data_pool = sc_mempool_new (p4est->data_size);
+        } else {
+            p4est->user_data_pool = NULL;
+        }
+        p4est->quadrant_pool = sc_mempool_new (sizeof (p4est_quadrant_t));
+    }
+
+    //fill global partition information
+    if(p4est->global_first_position != NULL)
+        P4EST_FREE(p4est->global_first_position);
+    p4est->global_first_position = P4EST_ALLOC_ZERO (p4est_quadrant_t, num_procs + 1);
+    p4est_comm_global_partition (p4est, NULL);
+
+    P4EST_FREE(global_added);
+    if(p4est->mpicomm_owned && oldcomm != MPI_COMM_NULL)
+        sc_MPI_Comm_free(&oldcomm);
+
+    P4EST_ASSERT(p4est_is_valid(p4est));
+
+
+    ////////////////////////////////////////////////////////////////
+    //     DEBUG STUFF
+    ////////////////////////////////////////////////////////////////
+
+    int worldrank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &worldrank);
+    printf("rank %d: is added=%d, num added=%d\n", worldrank, is_added, num_added);
+
+    return p4est;
+}
+
+
+p4est_t            *
+p4est_dynres_remove (p4est_t * p4est, sc_MPI_Comm new_mpicomm)
+{
+    return p4est_dynres_remove_ext (p4est, new_mpicomm, -1, -1, NULL);
+}
+
+
+p4est_t            *
+p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_removed, int num_removed, p4est_weight_t weight_fn)
+{
+
+    int mpiret;
+
+    //compute unknown input values
+    if(is_removed < 0)
+        is_removed = (new_mpicomm == MPI_COMM_NULL);
+
+    if(num_removed < 0) {
+        mpiret = sc_MPI_Allreduce(&is_removed, &num_removed, 1, MPI_INT, MPI_SUM, p4est->mpicomm);
+        SC_CHECK_MPI (mpiret);
+    }
+
+    if(num_removed < 1)
+        return p4est;
+
+    if(weight_fn != NULL)
+        P4EST_GLOBAL_LERROR ("p4est: Warning: Calling p4est_dynres_remove_ext with non-null weight function is not yet supproted. Using uniform partitioning instead.\n");
+
+    sc_MPI_Comm oldcomm = p4est->mpicomm;
+    int oldsize = p4est->mpisize;
+
+    //collect information about the removed processes
+    int new_num_procs;
+    int *global_removed = P4EST_ALLOC (int, oldsize);
+    mpiret = MPI_Allgather (&is_removed, 1, MPI_INT, 
+            global_removed, 1, MPI_INT,
+            oldcomm);
+    SC_CHECK_MPI (mpiret);
+    int quadrants_moved = 0;
+    for(int i = 0; i < oldsize; i++) {
+        if(global_removed[i]) {
+            quadrants_moved += p4est->global_first_quadrant[i+1]-p4est->global_first_quadrant[i];
+        }
+    }
+
+    //calculate local target quadrant count
+    p4est_locidx_t local_target;
+    if(is_removed) {
+        local_target = 0;
+    } else {
+        //distribute the affected quadrants equally between all processes
+
+        int new_num_procs;
+        mpiret = MPI_Comm_size(new_mpicomm, &new_num_procs);
+        SC_CHECK_MPI (mpiret);
+
+        local_target = p4est->local_num_quadrants + (quadrants_moved / new_num_procs);
+        
+        int new_rank;
+        mpiret = MPI_Comm_rank(new_mpicomm, &new_rank);
+        SC_CHECK_MPI (mpiret);
+        if(new_rank < quadrants_moved % new_num_procs)
+            local_target++;
+    }
+
+    //communicate distribution array
+    int num_procs = p4est->mpisize;
+    int *target_distribution = P4EST_ALLOC (p4est_locidx_t, num_procs);
+    mpiret = MPI_Allgather (&local_target, 1, P4EST_MPI_LOCIDX, 
+            target_distribution, 1, P4EST_MPI_LOCIDX,
+            p4est->mpicomm);
+    SC_CHECK_MPI (mpiret);
+
+
+    //repartition according to the target quadrant counts
+    int global_shipped = p4est_partition_given (p4est, target_distribution);
+    if (global_shipped) {
+        /* the partition of the forest has changed somewhere */
+        ++p4est->revision;
+    }
+
+    //now, exactly the removed processes should be empty
+    //remove all empty processes
+    int p4est_exists = p4est_comm_parallel_env_reduce(&p4est);
+
+    P4EST_FREE (global_removed);
+    P4EST_FREE (target_distribution);
+    
+    if(p4est_exists) {
+        P4EST_ASSERT(p4est_is_valid(p4est));
+        return p4est;
+    } else {
+        return NULL;
+    }
+}
+
+
+p4est_t            *
+p4est_dynres_replace (p4est_t *p4est, sc_MPI_Comm new_mpicomm)
+{
+   return p4est_dynres_replace_ext(p4est, new_mpicomm, -1, -1, -1, -1, NULL, NULL);
+}
+
+
+p4est_t            *
+p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm, 
+        int is_added, int num_added,
+        int is_removed, int num_removed, 
+        void *user_pointer, p4est_weight_t weight_fn) 
+{
+    int mpiret;
+
+    //compute unknown input values
+    if(is_removed < 0)
+        is_removed = (new_mpicomm == MPI_COMM_NULL);
+
+    if(is_added < 0)
+        is_added = (p4est == NULL);
+
+
+    //This group contains all processes in the final communicator
+    MPI_Group new_group = MPI_GROUP_EMPTY;
+    int new_size = 0;
+    if(!is_removed) {
+        mpiret = MPI_Comm_group(new_mpicomm, &new_group);
+        SC_CHECK_MPI (mpiret);
+    }
+    
+    //This group contains all processes from the old communicator
+    MPI_Group old_group = MPI_GROUP_EMPTY;
+    int old_size = 0;
+    sc_MPI_Comm old_comm;
+    if(!is_added) {
+        old_comm = p4est->mpicomm;
+        mpiret = MPI_Comm_group(old_comm, &old_group);
+        SC_CHECK_MPI (mpiret);
+    }
+
+    //Intersection between the previous groups, contains all processes
+    //kept over this operation
+    MPI_Group kept_group;
+    mpiret = MPI_Group_intersection(old_group, new_group, &kept_group);
+    SC_CHECK_MPI (mpiret);
+    int is_kept = kept_group != MPI_GROUP_EMPTY;
+
+   
+    //for the old processes, create the intersection communicator
+    //and remove processes outside it
+    MPI_Comm kept_comm;
+    if(num_removed != 0 && !is_added) {
+        mpiret = MPI_Comm_create(old_comm, kept_group, &kept_comm);
+        SC_CHECK_MPI (mpiret);
+
+        //remove processes
+        if(num_removed > 0) {
+            p4est = p4est_dynres_remove_ext(p4est, kept_comm, is_removed, num_removed, weight_fn);
+        } else {
+            p4est = p4est_dynres_remove_ext(p4est, kept_comm, -1, -1, weight_fn);
+        }
+    }
+
+    //now, the removed processes are no more of interest.
+    //Add the new ones
+    if(num_added != 0 && !is_removed) {
+        if(num_added > 0) {
+            p4est = p4est_dynres_add_ext(p4est, new_mpicomm, is_added, num_added, user_pointer);
+        } else {
+            p4est = p4est_dynres_add_ext(p4est, new_mpicomm, -1, -1, user_pointer);
+        }
+    }
+
+    if(!is_removed)
+        MPI_Group_free(&new_group);
+    if(!is_added)
+        MPI_Group_free(&old_group);
+    if(is_kept)
+        MPI_Comm_free(&kept_comm);
+    MPI_Group_free(&kept_group);
+
+
+    if(p4est != NULL)
+        P4EST_ASSERT(p4est_is_valid(p4est));
+
+    return p4est;
+}
+
 
 void
 p4est_reset_data (p4est_t * p4est, size_t data_size,

@@ -416,6 +416,67 @@ p4est_mesh_t       *p4est_mesh_new_ext (p4est_t * p4est,
 p4est_t            *p4est_copy_ext (p4est_t * input, int copy_data,
                                     int duplicate_mpicomm);
 
+
+/** Add new processes.
+ * Mimics the main functionality of p4est_new to init the p4est on the
+ * additional process
+ *
+ * \param [in, out] p4est    the p4est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing all processes, 
+ *                           including new ones
+ * \param [in] is_added      boolean flag indicating whether the calling
+ *                           process will be newly added, ignored if < 0
+ * \param [in] num_added     number of added processes, ignored if < 0
+ * \param [in] user_pointer  data to be stored within the p4est user pointer,
+ *                           may be NULL
+ */
+p4est_t            *p4est_dynres_add_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm,
+                                          int is_added, int num_added,
+                                          void * user_pointer);
+
+/** Remove some processes
+ * Remove some processes from the p4est, distribute their quadrants 
+ * over the other processes.
+ *
+ * \param [in, out] p4est    the p4est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing only the processes 
+ *                           that are not removed
+ * \param [in] is_removed    true if this process should be removed,
+ *                           will be ignored if < 0
+ * \param [in] num_removed   number of processes to be removed, 
+ *                           ignored if < 0
+ * \param [in] weight_fn     weighting function for distribution the quadrants,
+ *                           currently ignored
+ */
+p4est_t            *p4est_dynres_remove_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
+                                             int is_removed, int num_removed,
+                                             p4est_weight_t weight_fn); 
+
+/** Replace the MPI communicator
+ * Uses p4est_dynres_remove and p4est_dynres_add to change the processes
+ * working with this p4est to those in a given communicator.
+ *
+ * At least one process has to be kept over this operation.
+ *
+ * \param [in, out] p4est    the p4est that should be changed
+ * \param [in] newcomm       the new MPI communicator
+ * \param [in] is_added      indicates whether the calling process will
+ *                           be newly added, ignored if < 0
+ * \param [in] num_added     number of processes to be added, ignored if < 0
+ * \param [in] is_removed    indicates whether the calling process will
+ *                           be removed, ignored if < 0
+ * \param [in] num_removed   number of processes to be removed, ignored if < 0
+ * \param [in] user_pointer  data to be stored within the p4est user pointer,
+ *                           may be NULL
+ * \param [in] weight_fn     weighting function for distribution the quadrants,
+ *                           currently ignored
+ */
+p4est_t            *p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm newcomm,
+                                              int is_added, int num_added,
+                                              int is_removed, int num_removed,
+                                              void * user_pointer, 
+                                              p4est_weight_t weight_fn); 
+
 /** Refine a forest with a bounded refinement level and a replace option.
  * \param [in,out] p4est The forest is changed in place.
  * \param [in] refine_recursive Boolean to decide on recursive refinement.

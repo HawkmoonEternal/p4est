@@ -295,6 +295,38 @@ void                p8est_destroy (p8est_t * p8est);
  */
 p8est_t            *p8est_copy (p8est_t * input, int copy_data);
 
+
+/** Add new processes.
+ * Mimics the main functionality of p8est_new to init the p8est on the
+ * additional process
+ *
+ * \param [in, out] p8est    the p8est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing all processes, 
+ *                           including new ones
+ */
+p8est_t            *p8est_dynres_add (p8est_t * p8est, sc_MPI_Comm new_mpicomm);
+
+/** Remove some processes
+ * Remove some processes from the p8est, equally distribute their quadrants 
+ * over the other processes.
+ *
+ * \param [in, out] p8est    the p8est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing only the processes 
+ *                           that are not removed
+ */
+p8est_t            *p8est_dynres_remove (p8est_t *p8est, sc_MPI_Comm new_mpicomm); 
+
+/** Replace the MPI communicator
+ * Uses p8est_dynres_remove and p8est_dynres_add to change the processes
+ * working with this p8est to those in a given communicator.
+ *
+ * Atl least one process has to be kept over this operation.
+ *
+ * \param [in] p8est         the p8est that should be changed
+ * \param [in] newcomm       the new MPI communicator
+ */
+p8est_t            *p8est_dynres_replace (p8est_t *p8est, sc_MPI_Comm newcomm); 
+
 /** Reset user pointer and element data.
  * When the data size is changed the quadrant data is freed and allocated.
  * The initialization callback is invoked on each quadrant.

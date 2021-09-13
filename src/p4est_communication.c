@@ -88,7 +88,8 @@ p4est_comm_parallel_env_replace (p4est_t * p4est, sc_MPI_Comm mpicomm)
     mpiret = sc_MPI_Comm_compare (p4est->mpicomm, mpicomm, &result);
     SC_CHECK_MPI (mpiret);
 
-    P4EST_ASSERT (result == sc_MPI_IDENT || result == sc_MPI_CONGRUENT);
+    //Assertion removed, as it prevents resource changes
+    //P4EST_ASSERT (result == sc_MPI_IDENT || result == sc_MPI_CONGRUENT);
   }
 #endif
 

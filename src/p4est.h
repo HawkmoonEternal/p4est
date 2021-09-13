@@ -298,6 +298,39 @@ void                p4est_destroy (p4est_t * p4est);
  */
 p4est_t            *p4est_copy (p4est_t * input, int copy_data);
 
+
+/** Add new processes.
+ * Mimics the main functionality of p4est_new to init the p4est on the
+ * additional process
+ *
+ * \param [in, out] p4est    the p4est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing all processes, 
+ *                           including new ones
+ */
+p4est_t            *p4est_dynres_add (p4est_t * p4est, sc_MPI_Comm new_mpicomm);
+
+/** Remove some processes
+ * Remove some processes from the p4est, equally distribute their quadrants 
+ * over the other processes.
+ *
+ * \param [in, out] p4est    the p4est that should be changed
+ * \param [in] new_mpicomm   a MPI communicator containing only the processes 
+ *                           that are not removed
+ */
+p4est_t            *p4est_dynres_remove (p4est_t *p4est, sc_MPI_Comm new_mpicomm); 
+
+/** Replace the MPI communicator
+ * Uses p4est_dynres_remove and p4est_dynres_add to change the processes
+ * working with this p4est to those in a given communicator.
+ *
+ * Atl least one process has to be kept over this operation.
+ *
+ * \param [in] p4est         the p4est that should be changed
+ * \param [in] newcomm       the new MPI communicator
+ */
+p4est_t            *p4est_dynres_replace (p4est_t *p4est, sc_MPI_Comm newcomm); 
+
+
 /** Reset user pointer and element data.
  * When the data size is changed the quadrant data is freed and allocated.
  * The initialization callback is invoked on each quadrant.

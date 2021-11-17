@@ -238,10 +238,10 @@ p4est_new_ext (sc_MPI_Comm mpicomm, p4est_connectivity_t * connectivity,
   p4est_quadrant_t   *global_first_position;
   sc_array_t         *tquadrants;
 
-  P4EST_GLOBAL_PRODUCTIONF
-    ("Into " P4EST_STRING
-     "_new with min quadrants %lld level %d uniform %d\n",
-     (long long) min_quadrants, SC_MAX (min_level, 0), fill_uniform);
+  //P4EST_GLOBAL_PRODUCTIONF
+  //  ("Into " P4EST_STRING
+  //   "_new with min quadrants %lld level %d uniform %d\n",
+  //   (long long) min_quadrants, SC_MAX (min_level, 0), fill_uniform);
   p4est_log_indent_push ();
 
   P4EST_ASSERT (p4est_connectivity_is_valid (connectivity));
@@ -512,9 +512,9 @@ p4est_new_ext (sc_MPI_Comm mpicomm, p4est_connectivity_t * connectivity,
   P4EST_ASSERT (p4est->revision == 0);
   P4EST_ASSERT (p4est_is_valid (p4est));
   p4est_log_indent_pop ();
-  P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
-                            "_new with %lld total quadrants\n",
-                            (long long) p4est->global_num_quadrants);
+  //P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
+  //                          "_new with %lld total quadrants\n",
+  //                          (long long) p4est->global_num_quadrants);
   return p4est;
 }
 
@@ -809,7 +809,7 @@ p4est_dynres_add_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm,
 
     int worldrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &worldrank);
-    printf("rank %d: is added=%d, num added=%d\n", worldrank, is_added, num_added);
+    //printf("rank %d: is added=%d, num added=%d\n", worldrank, is_added, num_added);
 
     return p4est;
 }
@@ -831,7 +831,6 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
     //compute unknown input values
     if(is_removed < 0)
         is_removed = (new_mpicomm == MPI_COMM_NULL);
-
     if(num_removed < 0) {
         mpiret = sc_MPI_Allreduce(&is_removed, &num_removed, 1, MPI_INT, MPI_SUM, p4est->mpicomm);
         SC_CHECK_MPI (mpiret);
@@ -845,7 +844,6 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
 
     sc_MPI_Comm oldcomm = p4est->mpicomm;
     int oldsize = p4est->mpisize;
-
     //collect information about the removed processes
     int new_num_procs;
     int *global_removed = P4EST_ALLOC (int, oldsize);
@@ -934,12 +932,14 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
     if(is_added < 0)
         is_added = (p4est == NULL);
 
-
+    if(is_removed)
+      printf("IS_REMOVED, BUT PARTICIPATING\n");
     //This group contains all processes in the final communicator
     MPI_Group new_group = MPI_GROUP_EMPTY;
     int new_size = 0;
     if(!is_removed) {
         mpiret = MPI_Comm_group(new_mpicomm, &new_group);
+        MPI_Group_size(new_group, &new_size);
         SC_CHECK_MPI (mpiret);
     }
     
@@ -950,6 +950,7 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
     if(!is_added) {
         old_comm = p4est->mpicomm;
         mpiret = MPI_Comm_group(old_comm, &old_group);
+        MPI_Group_size(old_group, &old_size);
         SC_CHECK_MPI (mpiret);
     }
 
@@ -960,19 +961,26 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
     SC_CHECK_MPI (mpiret);
     int is_kept = kept_group != MPI_GROUP_EMPTY;
 
-   
+    int kept_size = 0;
+    MPI_Group_size(kept_group, &kept_size);
+    
     //for the old processes, create the intersection communicator
     //and remove processes outside it
-    MPI_Comm kept_comm;
-    if(num_removed != 0 && !is_added) {
-        mpiret = MPI_Comm_create(old_comm, kept_group, &kept_comm);
-        SC_CHECK_MPI (mpiret);
-
+    MPI_Comm kept_comm = MPI_COMM_NULL;
+    if(num_removed != 0 && !is_added && new_size < old_size) {
+        //mpiret = MPI_Comm_create(old_comm, kept_group, &kept_comm);
+        if(!is_removed){
+          mpiret = MPI_Comm_dup(new_mpicomm, &kept_comm);
+          SC_CHECK_MPI (mpiret);
+        }
         //remove processes
         if(num_removed > 0) {
             p4est = p4est_dynres_remove_ext(p4est, kept_comm, is_removed, num_removed, weight_fn);
         } else {
-            p4est = p4est_dynres_remove_ext(p4est, kept_comm, -1, -1, weight_fn);
+            if(!is_removed)
+              p4est = p4est_dynres_remove_ext(p4est, kept_comm, -1, -1, weight_fn);
+            else
+              p4est = p4est_dynres_remove_ext(p4est, MPI_COMM_NULL, -1, -1, weight_fn);
         }
     }
 
@@ -990,7 +998,7 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
         MPI_Group_free(&new_group);
     if(!is_added)
         MPI_Group_free(&old_group);
-    if(is_kept)
+    if(is_kept && kept_comm != MPI_COMM_NULL)
         MPI_Comm_free(&kept_comm);
     MPI_Group_free(&kept_group);
 
@@ -1084,11 +1092,11 @@ p4est_refine_ext (p4est_t * p4est, int refine_recursive, int allowed_level,
   if (allowed_level < 0) {
     allowed_level = P4EST_QMAXLEVEL;
   }
-  P4EST_GLOBAL_PRODUCTIONF ("Into " P4EST_STRING
-                            "_refine with %lld total quadrants,"
-                            " allowed level %d\n",
-                            (long long) p4est->global_num_quadrants,
-                            allowed_level);
+  //P4EST_GLOBAL_PRODUCTIONF ("Into " P4EST_STRING
+  //                          "_refine with %lld total quadrants,"
+  //                          " allowed level %d\n",
+  //                          (long long) p4est->global_num_quadrants,
+  //                          allowed_level);
   p4est_log_indent_push ();
   P4EST_ASSERT (p4est_is_valid (p4est));
   P4EST_ASSERT (0 <= allowed_level && allowed_level <= P4EST_QMAXLEVEL);
@@ -1123,8 +1131,8 @@ p4est_refine_ext (p4est_t * p4est, int refine_recursive, int allowed_level,
 #endif
 
     /* initial log message for this tree */
-    P4EST_VERBOSEF ("Into refine tree %lld with %llu\n", (long long) nt,
-                    (unsigned long long) tquadrants->elem_count);
+    //P4EST_VERBOSEF ("Into refine tree %lld with %llu\n", (long long) nt,
+    //                (unsigned long long) tquadrants->elem_count);
 
     /* reset the quadrant counters */
     maxlevel = 0;
@@ -1276,7 +1284,6 @@ p4est_refine_ext (p4est_t * p4est, int refine_recursive, int allowed_level,
     }
     P4EST_ASSERT (p4est_tree_is_sorted (tree));
     P4EST_ASSERT (p4est_tree_is_complete (tree));
-
     /* final log message for this tree */
     P4EST_VERBOSEF ("Done refine tree %lld now %llu\n", (long long) nt,
                     (unsigned long long) tquadrants->elem_count);
@@ -1289,7 +1296,6 @@ p4est_refine_ext (p4est_t * p4est, int refine_recursive, int allowed_level,
   }
 
   sc_list_destroy (list);
-
   /* compute global number of quadrants */
   p4est_comm_count_quadrants (p4est);
   P4EST_ASSERT (p4est->global_num_quadrants >= old_gnq);
@@ -1299,9 +1305,9 @@ p4est_refine_ext (p4est_t * p4est, int refine_recursive, int allowed_level,
 
   P4EST_ASSERT (p4est_is_valid (p4est));
   p4est_log_indent_pop ();
-  P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
-                            "_refine with %lld total quadrants\n",
-                            (long long) p4est->global_num_quadrants);
+  //P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
+  //                          "_refine with %lld total quadrants\n",
+  //                          (long long) p4est->global_num_quadrants);
 }
 
 void
@@ -1700,10 +1706,10 @@ p4est_balance_ext (p4est_t * p4est, p4est_connect_type_t btype,
   MPI_Status         *recv_statuses, *jstatus;
 #endif /* P4EST_ENABLE_MPI */
 
-  P4EST_GLOBAL_PRODUCTIONF ("Into " P4EST_STRING
-                            "_balance %s with %lld total quadrants\n",
-                            p4est_connect_type_string (btype),
-                            (long long) p4est->global_num_quadrants);
+ // P4EST_GLOBAL_PRODUCTIONF ("Into " P4EST_STRING
+ //                           "_balance %s with %lld total quadrants\n",
+ //                           p4est_connect_type_string (btype),
+ //                           (long long) p4est->global_num_quadrants);
   p4est_log_indent_push ();
   P4EST_ASSERT (p4est_is_valid (p4est));
 #ifndef P4_TO_P8
@@ -2798,9 +2804,9 @@ p4est_balance_ext (p4est_t * p4est, p4est_connect_type_t btype,
   P4EST_ASSERT (p4est_is_balanced (p4est, btype));
   P4EST_VERBOSEF ("Balance skipped %lld\n", (long long) skipped);
   p4est_log_indent_pop ();
-  P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
-                            "_balance with %lld total quadrants\n",
-                            (long long) p4est->global_num_quadrants);
+  //P4EST_GLOBAL_PRODUCTIONF ("Done " P4EST_STRING
+  //                          "_balance with %lld total quadrants\n",
+  //                          (long long) p4est->global_num_quadrants);
 }
 
 void
@@ -2847,10 +2853,10 @@ p4est_partition_ext (p4est_t * p4est, int partition_for_coarsening,
 #endif /* P4EST_ENABLE_MPI */
 
   P4EST_ASSERT (p4est_is_valid (p4est));
-  P4EST_GLOBAL_PRODUCTIONF
-    ("Into " P4EST_STRING
-     "_partition with %lld total quadrants\n",
-     (long long) p4est->global_num_quadrants);
+  //P4EST_GLOBAL_PRODUCTIONF
+  //  ("Into " P4EST_STRING
+  //   "_partition with %lld total quadrants\n",
+  //   (long long) p4est->global_num_quadrants);
 
   /* this function does nothing in a serial setup */
   if (p4est->mpisize == 1) {
@@ -3155,10 +3161,10 @@ p4est_partition_ext (p4est_t * p4est, int partition_for_coarsening,
 #endif /* P4EST_ENABLE_MPI */
 
   p4est_log_indent_pop ();
-  P4EST_GLOBAL_PRODUCTIONF
-    ("Done " P4EST_STRING "_partition shipped %lld quadrants %.3g%%\n",
-     (long long) global_shipped,
-     global_shipped * 100. / global_num_quadrants);
+  //P4EST_GLOBAL_PRODUCTIONF
+  //  ("Done " P4EST_STRING "_partition shipped %lld quadrants %.3g%%\n",
+  //   (long long) global_shipped,
+  //   global_shipped * 100. / global_num_quadrants);
 
   return global_shipped;
 }

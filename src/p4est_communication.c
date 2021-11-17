@@ -150,6 +150,11 @@ p4est_comm_parallel_env_reduce_ext (p4est_t ** p4est_supercomm,
     return 1;
   }
 
+  int my_rank = -1;
+  int included = 0;
+  mpiret = sc_MPI_Comm_rank(mpicomm, &my_rank);
+  SC_CHECK_MPI (mpiret);
+
   /* create array of non-empty processes that will be included to sub-comm */
   n_quadrants = P4EST_ALLOC (p4est_gloidx_t, mpisize);
   include = P4EST_ALLOC (int, mpisize);
@@ -158,6 +163,8 @@ p4est_comm_parallel_env_reduce_ext (p4est_t ** p4est_supercomm,
     n_quadrants[p] = global_first_quadrant[p + 1] - global_first_quadrant[p];
     if (global_first_quadrant[p] < global_first_quadrant[p + 1]) {
       include[submpisize++] = p;
+      if(my_rank == p)
+        included = 1;
     }
   }
 
@@ -200,8 +207,14 @@ p4est_comm_parallel_env_reduce_ext (p4est_t ** p4est_supercomm,
   }
   else {
     /* create sub-communicator */
-    mpiret = sc_MPI_Comm_create (mpicomm, subgroup, &submpicomm);
-    SC_CHECK_MPI (mpiret);
+    //mpiret = sc_MPI_Comm_create (mpicomm, subgroup, &submpicomm);
+
+    if(included){
+      mpiret = MPI_Comm_create_from_group(subgroup, "tag", MPI_INFO_NULL, MPI_ERRORS_ARE_FATAL, &submpicomm);
+      SC_CHECK_MPI (mpiret);
+    }else{
+      submpicomm = MPI_COMM_NULL;
+    }
     mpiret = sc_MPI_Group_free (&subgroup);
     SC_CHECK_MPI (mpiret);
   }

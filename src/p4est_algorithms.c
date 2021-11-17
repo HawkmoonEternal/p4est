@@ -2872,9 +2872,9 @@ p4est_partition_given (p4est_t * p4est,
   p4est_gloidx_t      total_requested_quadrants = 0;
 #endif
 
-  P4EST_GLOBAL_INFOF
-    ("Into " P4EST_STRING "_partition_given with %lld total quadrants\n",
-     (long long) p4est->global_num_quadrants);
+  //P4EST_GLOBAL_INFOF
+  //  ("Into " P4EST_STRING "_partition_given with %lld total quadrants\n",
+  //   (long long) p4est->global_num_quadrants);
 
 #ifdef P4EST_ENABLE_DEBUG
   /* Save a checksum of the original forest */
@@ -3650,11 +3650,11 @@ p4est_partition_given (p4est_t * p4est,
 
   /* Assert that we have a valid partition */
   P4EST_ASSERT (crc == p4est_checksum (p4est));
-  P4EST_GLOBAL_INFOF
-    ("Done " P4EST_STRING
-     "_partition_given shipped %lld quadrants %.3g%%\n",
-     (long long) total_quadrants_shipped,
-     total_quadrants_shipped * 100. / p4est->global_num_quadrants);
+  //P4EST_GLOBAL_INFOF
+  //  ("Done " P4EST_STRING
+  //   "_partition_given shipped %lld quadrants %.3g%%\n",
+  //   (long long) total_quadrants_shipped,
+  //   total_quadrants_shipped * 100. / p4est->global_num_quadrants);
 
   return total_quadrants_shipped;
 }

@@ -19,4 +19,4 @@ SC_PKG_LIBS = -lsc
 # These pull in everything needed by libsc
 SC_CPPFLAGS =  $(SC_PKG_CPPFLAGS)
 SC_LDFLAGS =  $(SC_PKG_LDFLAGS)
-SC_LIBS = $(SC_PKG_LIBS)   -lz -lm   
+SC_LIBS = $(SC_PKG_LIBS)   -lm   

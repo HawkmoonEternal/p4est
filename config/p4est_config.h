@@ -242,9 +242,7 @@
 #endif
 
 /* Have we found function adler32_combine. */
-#ifndef P4EST_HAVE_ZLIB
-#define P4EST_HAVE_ZLIB 1
-#endif
+/* #undef HAVE_ZLIB */
 
 /* Linker flags */
 #ifndef P4EST_LDFLAGS
@@ -253,7 +251,7 @@
 
 /* Libraries */
 #ifndef P4EST_LIBS
-#define P4EST_LIBS "  -lz -lm   "
+#define P4EST_LIBS "  -lm   "
 #endif
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */

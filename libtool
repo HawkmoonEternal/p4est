@@ -281,10 +281,10 @@ finish_eval=""
 hardcode_into_libs=yes
 
 # Compile-time system search path for libraries.
-sys_lib_search_path_spec="/usr/lib/gcc/x86_64-redhat-linux/8 /usr/lib64 /lib64 /usr/lib /lib "
+sys_lib_search_path_spec="/usr/lib/gcc/x86_64-redhat-linux/4.8.5 /usr/lib64 /lib64 /usr/lib /lib "
 
 # Detected run-time system search path for libraries.
-sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/lib64//bind9-export/ "
+sys_lib_dlsearch_path_spec="/lib /usr/lib "
 
 # Explicit LT_SYS_LIBRARY_PATH set during ./configure time.
 configure_time_lt_sys_library_path=""
@@ -11895,18 +11895,18 @@ file_list_spec=""
 hardcode_action=immediate
 
 # The directories searched by this compiler when creating a shared library.
-compiler_lib_search_dirs="/opt/hpc/external/ompi/lib /usr/lib/gcc/x86_64-redhat-linux/8 /usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64 /lib/../lib64 /usr/lib/../lib64 /usr/lib/gcc/x86_64-redhat-linux/8/../../.."
+compiler_lib_search_dirs="/opt/hpc/external/ompi/lib /usr/lib/gcc/x86_64-redhat-linux/4.8.5 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 /lib/../lib64 /usr/lib/../lib64 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.."
 
 # Dependencies to place before and after the objects being linked to
 # create a shared library.
-predep_objects="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/8/crtbeginS.o"
-postdep_objects="/usr/lib/gcc/x86_64-redhat-linux/8/crtendS.o /usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64/crtn.o"
+predep_objects="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbeginS.o"
+postdep_objects="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtendS.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o"
 predeps=""
 postdeps="-lmpi -lstdc++ -lm -lgcc_s -lpthread -lc -lgcc_s"
 
 # The library search path used internally by the compiler when linking
 # a shared library.
-compiler_lib_search_path="-L/opt/hpc/external/ompi/lib -L/usr/lib/gcc/x86_64-redhat-linux/8 -L/usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/8/../../.."
+compiler_lib_search_path="-L/opt/hpc/external/ompi/lib -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.."
 
 # ### END LIBTOOL TAG CONFIG: CXX
 
@@ -12204,9 +12204,9 @@ compiler_lib_search_dirs=""
 # Dependencies to place before and after the objects being linked to
 # create a shared library.
 predep_objects=""
-postdep_objects="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/8/crtbeginS.o /usr/lib/gcc/x86_64-redhat-linux/8/crtendS.o /usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64/crtn.o"
+postdep_objects="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbeginS.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtendS.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o"
 predeps=""
-postdeps="-L/opt/hpc/external/ompi/lib -lmpi -l -l -L/opt/hpc/external/ompi/lib -L/usr/lib/gcc/x86_64-redhat-linux/8 -L/usr/lib/gcc/x86_64-redhat-linux/8/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/8/../../.. -lmpi -lgfortran -lm -lgcc_s -lquadmath -lm -lgcc_s -lc -lgcc_s"
+postdeps="-L/opt/hpc/external/ompi/lib -lmpi -l -l -L/opt/hpc/external/ompi/lib -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. -lmpi -lgfortran -lm -lgcc_s -lquadmath -lm -lgcc_s -lc -lgcc_s"
 
 # The library search path used internally by the compiler when linking
 # a shared library.

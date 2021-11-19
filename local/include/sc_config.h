@@ -96,9 +96,7 @@
 #endif
 
 /* Development with V4L2 devices works */
-#ifndef SC_ENABLE_V4L2
-#define SC_ENABLE_V4L2 1
-#endif
+/* #undef ENABLE_V4L2 */
 
 /* F77 compiler */
 #ifndef SC_F77
@@ -316,9 +314,7 @@
 #endif
 
 /* Have we found function adler32_combine. */
-#ifndef SC_HAVE_ZLIB
-#define SC_HAVE_ZLIB 1
-#endif
+/* #undef HAVE_ZLIB */
 
 /* Define to 1 on a bigendian machine */
 /* #undef IS_BIGENDIAN */
@@ -330,7 +326,7 @@
 
 /* Libraries */
 #ifndef SC_LIBS
-#define SC_LIBS "  -lz -lm   "
+#define SC_LIBS "  -lm   "
 #endif
 
 /* minimal log priority */

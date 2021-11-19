@@ -16,4 +16,4 @@ Requires: libsc >= 2.3
 
 Cflags: -I${prefix}/include
 Libs: -L${exec_prefix}/lib -lp4est
-Libs.private:    -lz -lm   
+Libs.private:    -lm   

@@ -14,4 +14,4 @@ URL: https://www.p4est.org/
 
 Cflags: -I${prefix}/include
 Libs: -L${exec_prefix}/lib -lsc
-Libs.private:    -lz -lm   
+Libs.private:    -lm   

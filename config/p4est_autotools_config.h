@@ -166,13 +166,13 @@
 #define HAVE_UNISTD_H 1
 
 /* Have we found function adler32_combine. */
-#define HAVE_ZLIB 1
+/* #undef HAVE_ZLIB */
 
 /* Linker flags */
 #define LDFLAGS ""
 
 /* Libraries */
-#define LIBS "  -lz -lm   "
+#define LIBS "  -lm   "
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"

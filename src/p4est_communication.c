@@ -47,6 +47,7 @@ p4est_comm_parallel_env_assign (p4est_t * p4est, sc_MPI_Comm mpicomm)
   p4est_comm_parallel_env_get_info (p4est);
 }
 
+
 void
 p4est_comm_parallel_env_duplicate (p4est_t * p4est)
 {
@@ -66,7 +67,8 @@ p4est_comm_parallel_env_release (p4est_t * p4est)
 
   /* free MPI communicator if it's owned */
   if (p4est->mpicomm_owned) {
-    mpiret = sc_MPI_Comm_free (&(p4est->mpicomm));
+    //mpiret = sc_MPI_Comm_free (&(p4est->mpicomm));
+    mpiret = MPI_Comm_disconnect (&(p4est->mpicomm));
     SC_CHECK_MPI (mpiret);
   }
   p4est->mpicomm = sc_MPI_COMM_NULL;
@@ -283,8 +285,10 @@ p4est_comm_parallel_env_reduce_ext (p4est_t ** p4est_supercomm,
   /* set new parallel environment */
   p4est_comm_parallel_env_release (p4est);
   p4est_comm_parallel_env_assign (p4est, submpicomm);
-  p4est_comm_parallel_env_duplicate (p4est);
-  mpiret = sc_MPI_Comm_free (&submpicomm);
+  p4est->mpicomm_owned = 1;
+  //p4est_comm_parallel_env_duplicate (p4est);
+  //mpiret = sc_MPI_Comm_free (&submpicomm);
+  //mpiret = MPI_Comm_disconnect (&submpicomm);
   SC_CHECK_MPI (mpiret);
   P4EST_ASSERT (p4est->mpisize == submpisize);
 

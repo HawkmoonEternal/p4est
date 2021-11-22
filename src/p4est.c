@@ -827,7 +827,6 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
 {
 
     int mpiret;
-
     //compute unknown input values
     if(is_removed < 0)
         is_removed = (new_mpicomm == MPI_COMM_NULL);
@@ -835,7 +834,6 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
         mpiret = sc_MPI_Allreduce(&is_removed, &num_removed, 1, MPI_INT, MPI_SUM, p4est->mpicomm);
         SC_CHECK_MPI (mpiret);
     }
-
     if(num_removed < 1)
         return p4est;
 
@@ -847,6 +845,7 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
     //collect information about the removed processes
     int new_num_procs;
     int *global_removed = P4EST_ALLOC (int, oldsize);
+
     mpiret = MPI_Allgather (&is_removed, 1, MPI_INT, 
             global_removed, 1, MPI_INT,
             oldcomm);
@@ -870,14 +869,13 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
         SC_CHECK_MPI (mpiret);
 
         local_target = p4est->local_num_quadrants + (quadrants_moved / new_num_procs);
-        
+
         int new_rank;
         mpiret = MPI_Comm_rank(new_mpicomm, &new_rank);
         SC_CHECK_MPI (mpiret);
         if(new_rank < quadrants_moved % new_num_procs)
             local_target++;
     }
-
     //communicate distribution array
     int num_procs = p4est->mpisize;
     int *target_distribution = P4EST_ALLOC (p4est_locidx_t, num_procs);
@@ -893,7 +891,7 @@ p4est_dynres_remove_ext (p4est_t * p4est, sc_MPI_Comm new_mpicomm, int is_remove
         /* the partition of the forest has changed somewhere */
         ++p4est->revision;
     }
-
+    
     //now, exactly the removed processes should be empty
     //remove all empty processes
     int p4est_exists = p4est_comm_parallel_env_reduce(&p4est);
@@ -932,8 +930,7 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
     if(is_added < 0)
         is_added = (p4est == NULL);
 
-    if(is_removed)
-      printf("IS_REMOVED, BUT PARTICIPATING\n");
+
     //This group contains all processes in the final communicator
     MPI_Group new_group = MPI_GROUP_EMPTY;
     int new_size = 0;
@@ -969,16 +966,16 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
     MPI_Comm kept_comm = MPI_COMM_NULL;
     if(num_removed != 0 && !is_added && new_size < old_size) {
         //mpiret = MPI_Comm_create(old_comm, kept_group, &kept_comm);
-        if(!is_removed){
-          mpiret = MPI_Comm_dup(new_mpicomm, &kept_comm);
-          SC_CHECK_MPI (mpiret);
-        }
+        //if(!is_removed){
+        //  mpiret = MPI_Comm_dup(new_mpicomm, &kept_comm);
+        //  SC_CHECK_MPI (mpiret);
+        //}
         //remove processes
         if(num_removed > 0) {
-            p4est = p4est_dynres_remove_ext(p4est, kept_comm, is_removed, num_removed, weight_fn);
+            p4est = p4est_dynres_remove_ext(p4est, new_mpicomm, is_removed, num_removed, weight_fn);
         } else {
             if(!is_removed)
-              p4est = p4est_dynres_remove_ext(p4est, kept_comm, -1, -1, weight_fn);
+              p4est = p4est_dynres_remove_ext(p4est, new_mpicomm, -1, -1, weight_fn);
             else
               p4est = p4est_dynres_remove_ext(p4est, MPI_COMM_NULL, -1, -1, weight_fn);
         }
@@ -998,8 +995,10 @@ p4est_dynres_replace_ext (p4est_t *p4est, sc_MPI_Comm new_mpicomm,
         MPI_Group_free(&new_group);
     if(!is_added)
         MPI_Group_free(&old_group);
+    //if(is_kept && kept_comm != MPI_COMM_NULL)
+    //    MPI_Comm_free(&kept_comm);
     if(is_kept && kept_comm != MPI_COMM_NULL)
-        MPI_Comm_free(&kept_comm);
+        MPI_Comm_disconnect(&kept_comm);    
     MPI_Group_free(&kept_group);
 
 
